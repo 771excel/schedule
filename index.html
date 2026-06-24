@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>771엑셀 방송편성안 자동 생성기</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2canvas for image export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+
+        /* UI Table Styles */
+        .sticky-col { position: sticky; left: 0; background-color: #f8fafc; z-index: 10; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+        thead .sticky-col { background-color: #0f172a; z-index: 20; }
+        .schedule-table th { padding: 12px 8px; font-size: 14px; white-space: nowrap; border: 1px solid #334155; min-width: 80px; }
+        .schedule-table td { padding: 8px 4px; border: 1px solid #cbd5e1; text-align: center; vertical-align: middle; }
+        .schedule-table tr:hover td { background-color: #f8fafc; }
+        .date-col { font-weight: 700; color: #334155; font-size: 13px; }
+        
+        /* UI Pill Styles */
+        .pill { display: flex; justify-content: center; align-items: center; width: 100%; max-width: 65px; margin: 0 auto; padding: 6px 0; border-radius: 6px; font-weight: 700; font-size: 13px; color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.1s; cursor: default; }
+        .pill:hover { transform: scale(1.05); }
+        .pill-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .pill-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .empty-cell { color: #94a3b8; font-weight: 400; font-size: 13px; }
+
+        /* UI Calendar Styles */
+        .cal-cell { transition: all 0.2s ease; }
+        .cal-fill-blue { background-color: #3b82f6 !important; color: white !important; font-weight: 700; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3); }
+        .cal-outline-blue { border: 2px solid #94a3b8; color: #64748b; font-weight: 600; }
+        .highlight-red { background-color: #ef4444 !important; color: white !important; border-color: #ef4444 !important; font-weight: 700; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3); }
+        .highlight-blue { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; font-weight: 700; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); }
+
+        .table-container::-webkit-scrollbar { height: 10px; }
+        .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+        .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+
+        /* =======================================================
+           EXPORT TEMPLATE STYLES (Used only for image generation)
+           ======================================================= */
+        #export-container {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 1280px;
+            height: 720px;
+            background-color: #ffffff;
+            padding: 35px 30px;
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            z-index: -100;
+        }
+
+        #export-container .header-section { width: 100%; margin-bottom: 20px; display: block; }
+        #export-container .slide-title { font-size: 38px; font-weight: 700; color: #0f172a; margin: 0 0 12px 0; letter-spacing: -1px; }
+        #export-container .title-divider { border: none; height: 4px; background-color: #1e293b; width: 100%; border-radius: 2px; margin: 0; display: block; }
+        
+        #export-container .content-area { display: flex; gap: 15px; flex-grow: 1; height: calc(100% - 75px); }
+        #export-container .table-section { flex: 1; display: block; height: 100%; overflow: hidden; }
+        
+        #export-container .export-table {
+            width: 100%; height: 100%; border-collapse: collapse; text-align: center;
+            border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px #e2e8f0; table-layout: fixed;
+        }
+        #export-container .export-table th {
+            background-color: #1e293b; color: #ffffff; font-weight: 500; height: 30px; 
+            border: 1px solid #334155; font-size: 11.5px; letter-spacing: -0.5px; vertical-align: middle;
+        }
+        #export-container .export-table td { padding: 1px; border: 1px solid #cbd5e1; vertical-align: middle; color: #334155; }
+        #export-container .export-table th:first-child, #export-container .export-table td:first-child { width: 6.5%; }
+        
+        #export-container .row-monday { background-color: #f0f9ff; }
+        #export-container .row-thursday { background-color: #ffffff; }
+        #export-container .date-col-export { font-weight: 700; color: #334155 !important; font-size: 11px; }
+
+        /* 버그 픽스: Flex를 쓰지 않고 block + line-height로 중앙 정렬을 강제함 */
+        #export-container .exp-pill {
+            display: inline-block; width: 90%; max-width: 50px; 
+            margin: 0 auto; height: 24px; line-height: 24px; border-radius: 5px; 
+            font-weight: 700; font-size: 11px; text-align: center; vertical-align: middle;
+            color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.1); white-space: nowrap;
+        }
+        #export-container .exp-pill-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        #export-container .exp-pill-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        #export-container .exp-empty-cell { display: inline-block; color: #94a3b8; font-weight: 400; font-size: 11px; height: 24px; line-height: 24px; text-align: center; vertical-align: middle; }
+
+        #export-container .side-panel {
+            width: 210px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 20px 15px; display: block; height: 100%; box-sizing: border-box;
+        }
+        #export-container .cal-title { text-align: center; font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 15px 0; font-family: 'Arial', sans-serif; line-height: 22px; }
+        #export-container .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 10px; text-align: center; margin-bottom: 20px; }
+        #export-container .day-head { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 5px; line-height: 12px; display: block; }
+        #export-container .day-head.red { color: #ef4444; }
+        #export-container .day-head.blue { color: #3b82f6; }
+        
+        /* 버그 픽스: 달력 원형 셀 중앙 정렬 수정 */
+        #export-container .exp-cal-cell { 
+            font-size: 13px; font-weight: 500; color: #334155; 
+            width: 24px; height: 24px; display: inline-block; line-height: 24px; text-align: center; 
+            margin: 0 auto; border-radius: 50%; box-sizing: border-box; 
+        }
+        #export-container .exp-cal-cell.red-text { color: #ef4444; }
+        #export-container .exp-cal-cell.empty { visibility: hidden; }
+        #export-container .exp-cal-fill-blue { background-color: #3b82f6; color: #ffffff; font-weight: 700; box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3); }
+        #export-container .exp-cal-outline-blue { border: 2px solid #3b82f6; color: #2563eb; font-weight: 700; }
+
+        #export-container .legend-area { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 10px; margin-top: auto; display: block; }
+        #export-container .legend-list { list-style: none; margin: 0; padding: 0; display: block; }
+        #export-container .legend-list li { display: block; font-size: 12px; color: #334155; font-weight: 500; letter-spacing: -0.5px; margin-bottom: 10px; line-height: 14px; }
+        #export-container .legend-list li:last-child { margin-bottom: 0; }
+        /* 버그 픽스: 범례 원형/네모 중앙 정렬 수정 */
+        #export-container .legend-box { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: middle; position: relative; top: -1px; }
+        #export-container .legend-box.red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        #export-container .legend-box.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        #export-container .legend-circle { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; vertical-align: middle; position: relative; top: -1px; }
+        #export-container .legend-circle.fill-blue { background-color: #3b82f6; box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3); }
+        #export-container .legend-circle.outline-blue { border: 2px solid #3b82f6; background-color: #ffffff; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col p-6">
+
+    <header class="max-w-7xl mx-auto w-full bg-white rounded-xl shadow-sm p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 relative z-20">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">771엑셀 방송편성 자동 생성기</h1>
+            <p class="text-slate-500 text-sm mt-1">월요일 고정 / 목요일 가변 원칙 (퇴출전 1회 + 일반 5회) 기반 모든 경우의 수 도출</p>
+        </div>
+        
+        <div class="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200 flex-wrap">
+            <input type="month" id="monthPicker" class="px-4 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700">
+            <button onclick="generateSchedule()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md font-semibold transition-colors shadow-sm whitespace-nowrap">
+                편성안 생성
+            </button>
+            <button onclick="exportToImage()" id="exportBtn" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-md font-semibold transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                </svg>
+                이미지로 생성
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full flex flex-col xl:flex-row gap-6 flex-grow relative z-10">
+        
+        <!-- UI Table Section -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-grow overflow-hidden flex flex-col">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <h2 id="tableTitle" class="text-lg font-bold text-slate-800">생성된 편성안 (0개)</h2>
+                <span class="text-xs text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">표의 열(안)에 마우스를 올리면 달력에 표시됩니다.</span>
+            </div>
+            <div class="table-container overflow-x-auto p-4 relative" id="tableContainer">
+                <!-- Table will be injected here -->
+                <div class="flex items-center justify-center h-64 text-slate-400">
+                    월을 선택하고 생성 버튼을 눌러주세요.
+                </div>
+            </div>
+        </div>
+
+        <!-- UI Calendar Section -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 w-full xl:w-80 flex-shrink-0 flex flex-col p-6">
+            <h3 id="calTitle" class="text-2xl font-bold text-center text-slate-800 mb-6 font-sans"></h3>
+            
+            <div class="grid grid-cols-7 gap-y-4 text-center mb-auto" id="calendarGrid">
+                <!-- Days Header -->
+                <div class="text-sm font-bold text-red-500 mb-2">일</div>
+                <div class="text-sm font-bold text-slate-600 mb-2">월</div>
+                <div class="text-sm font-bold text-slate-600 mb-2">화</div>
+                <div class="text-sm font-bold text-slate-600 mb-2">수</div>
+                <div class="text-sm font-bold text-slate-600 mb-2">목</div>
+                <div class="text-sm font-bold text-slate-600 mb-2">금</div>
+                <div class="text-sm font-bold text-blue-500 mb-2">토</div>
+                <!-- Calendar cells injected here -->
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mt-8">
+                <ul class="flex flex-col gap-3 text-sm text-slate-600 font-medium">
+                    <li class="flex items-center"><span class="w-3 h-3 rounded bg-gradient-to-br from-red-400 to-red-600 mr-3 shadow-sm"></span> 퇴출전</li>
+                    <li class="flex items-center"><span class="w-3 h-3 rounded bg-gradient-to-br from-blue-400 to-blue-600 mr-3 shadow-sm"></span> 일반회차 (1~5회차)</li>
+                    <li class="flex items-center mt-1"><span class="w-3 h-3 rounded-full bg-blue-500 mr-3 shadow-sm"></span> 월요일 고정</li>
+                    <li class="flex items-center mt-1"><span class="w-3 h-3 rounded-full border-2 border-slate-400 mr-3"></span> 목요일 가변편성</li>
+                </ul>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification (Replaces alert) -->
+    <div id="toast" class="fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300 translate-y-20 opacity-0 z-50 text-sm font-bold"></div>
+
+    <!-- Hidden Container for High Quality Image Export -->
+    <div id="export-container"></div>
+
+    <script>
+        // Global state
+        let currentCases = [];
+        let currentPool = [];
+        let currentYear = 0;
+        let currentMonth = 0;
+
+        // Custom UI Toast Function
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300 z-50 text-sm font-bold flex items-center gap-2 ${isError ? 'bg-red-600 text-white' : 'bg-slate-800 text-white'}`;
+            toast.style.transform = 'translateY(0)';
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.transform = 'translateY(30px)';
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const picker = document.getElementById('monthPicker');
+            picker.value = '2026-07';
+            generateSchedule();
+        });
+
+        function generateSchedule() {
+            const dateStr = document.getElementById('monthPicker').value;
+            if (!dateStr) return;
+
+            const [year, month] = dateStr.split('-').map(Number);
+            currentYear = year;
+            currentMonth = month;
+            
+            document.getElementById('calTitle').innerText = `${year}.${String(month).padStart(2, '0')}`;
+            document.getElementById('tableTitle').innerText = `${year}년 ${month}월 방송편성안`;
+
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const firstDayIndex = new Date(year, month - 1, 1).getDay();
+
+            const pool = [];
+            for (let i = 1; i <= daysInMonth; i++) {
+                const d = new Date(year, month - 1, i);
+                if (d.getDay() === 1 || d.getDay() === 4) pool.push(d);
+            }
+            currentPool = pool;
+
+            function getCombinations(array, size) {
+                const result = [];
+                function combine(start, path) {
+                    if (path.length === size) {
+                        result.push([...path]);
+                        return;
+                    }
+                    for (let i = start; i < array.length; i++) combine(i + 1, [...path, array[i]]);
+                }
+                combine(0, []);
+                return result;
+            }
+
+            const allCombos = getCombinations(pool, 6);
+            const validCombos = [];
+            
+            const totalMons = pool.filter(d => d.getDay() === 1).length;
+            const firstMon = pool.find(d => d.getDay() === 1);
+
+            allCombos.forEach(combo => {
+                const monCount = combo.filter(d => d.getDay() === 1).length;
+                if (monCount === totalMons) {
+                    validCombos.push(combo);
+                } else if (monCount === totalMons - 1) {
+                    const missedMon = pool.find(d => d.getDay() === 1 && !combo.includes(d));
+                    if (missedMon && firstMon && missedMon.getTime() === firstMon.getTime()) {
+                        const nextThu = pool.find(d => d.getDay() === 4 && d.getTime() > missedMon.getTime());
+                        if (nextThu && combo.includes(nextThu)) validCombos.push(combo);
+                    }
+                }
+            });
+
+            validCombos.sort((a, b) => {
+                if (a[0].getTime() !== b[0].getTime()) return a[0].getTime() - b[0].getTime();
+                const aMon = a.filter(d => d.getDay() === 1).length;
+                const bMon = b.filter(d => d.getDay() === 1).length;
+                return bMon - aMon;
+            });
+
+            currentCases = validCombos;
+
+            renderTable(validCombos, year, month);
+            renderCalendar(year, month, daysInMonth, firstDayIndex, pool);
+        }
+
+        function renderTable(cases, year, month) {
+            const container = document.getElementById('tableContainer');
+            document.getElementById('tableTitle').innerText = `${year}년 ${month}월 방송편성안 (총 ${cases.length}개 안)`;
+
+            if (cases.length === 0) {
+                container.innerHTML = `<div class="flex items-center justify-center h-64 text-red-400 font-bold">생성 가능한 편성 조합이 없습니다.</div>`;
+                return;
+            }
+
+            const usedDatesSet = new Set();
+            cases.forEach(combo => combo.forEach(d => usedDatesSet.add(d.getTime())));
+            const rows = Array.from(usedDatesSet).map(t => new Date(t)).sort((a, b) => a.getTime() - b.getTime());
+
+            let html = `<table class="schedule-table w-full border-collapse bg-white"><thead class="bg-slate-800 text-white"><tr><th class="sticky-col border-r border-slate-600 bg-slate-900">날짜 \\ 안</th>`;
+            cases.forEach((_, idx) => html += `<th class="cursor-pointer hover:bg-slate-700 transition-colors" onmouseenter="highlightCase(${idx})" onmouseleave="resetHighlight()">제 ${idx + 1}안</th>`);
+            html += `</tr></thead><tbody>`;
+
+            const daysArr = ['일', '월', '화', '수', '목', '금', '토'];
+
+            rows.forEach(rowDate => {
+                const isMon = rowDate.getDay() === 1;
+                html += `<tr class="${isMon ? 'bg-sky-50' : 'bg-white'}">`;
+                html += `<td class="sticky-col date-col text-center">${rowDate.getMonth()+1}/${rowDate.getDate()} (${daysArr[rowDate.getDay()]})</td>`;
+
+                cases.forEach((combo, idx) => {
+                    const comboIdx = combo.findIndex(d => d.getTime() === rowDate.getTime());
+                    html += `<td onmouseenter="highlightCase(${idx})" onmouseleave="resetHighlight()">`;
+                    if (comboIdx === 0) html += `<div class="pill pill-red">퇴출전</div>`;
+                    else if (comboIdx > 0) html += `<div class="pill pill-blue">${comboIdx}회차</div>`;
+                    else html += `<div class="empty-cell">-</div>`;
+                    html += `</td>`;
+                });
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function renderCalendar(year, month, daysInMonth, firstDayIndex, pool) {
+            const grid = document.getElementById('calendarGrid');
+            while (grid.children.length > 7) grid.removeChild(grid.lastChild);
+
+            for (let i = 0; i < firstDayIndex; i++) grid.appendChild(document.createElement('div'));
+
+            const poolTimes = pool.map(d => d.getTime());
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const d = new Date(year, month - 1, i);
+                const cell = document.createElement('div');
+                cell.id = `cal-day-${i}`;
+                cell.className = 'w-8 h-8 mx-auto flex items-center justify-center rounded-full text-sm font-medium text-slate-700 cal-cell relative z-10';
+                cell.innerText = i;
+
+                if (d.getDay() === 0) cell.classList.add('text-red-500');
+                if (d.getDay() === 1 && poolTimes.includes(d.getTime())) cell.classList.add('cal-fill-blue');
+                if (d.getDay() === 4 && poolTimes.includes(d.getTime())) cell.classList.add('cal-outline-blue');
+
+                grid.appendChild(cell);
+            }
+        }
+
+        function highlightCase(caseIndex) {
+            resetHighlight();
+            const combo = currentCases[caseIndex];
+            if (!combo) return;
+            combo.forEach((date, idx) => {
+                const cell = document.getElementById(`cal-day-${date.getDate()}`);
+                if (cell) cell.classList.add(idx === 0 ? 'highlight-red' : 'highlight-blue');
+            });
+        }
+
+        function resetHighlight() {
+            document.querySelectorAll('.cal-cell').forEach(cell => cell.classList.remove('highlight-red', 'highlight-blue'));
+        }
+
+        // ==========================================
+        // EXPORT TO IMAGE FUNCTIONALITY
+        // ==========================================
+        async function exportToImage() {
+            if (currentCases.length === 0) {
+                showToast("추출할 편성안이 없습니다.", true);
+                return;
+            }
+            
+            const btn = document.getElementById('exportBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '생성 중...';
+            btn.disabled = true;
+
+            const exportContainer = document.getElementById('export-container');
+            
+            // Build the HTML for the slide layout
+            let html = `
+                <div class="header-section">
+                    <h1 class="slide-title">${currentYear}년 771엑셀 ${currentMonth}월 방송편성안</h1>
+                    <hr class="title-divider">
+                </div>
+                <div class="content-area">
+                    <div class="table-section">
+            `;
+
+            const usedDatesSet = new Set();
+            currentCases.forEach(combo => combo.forEach(d => usedDatesSet.add(d.getTime())));
+            const rows = Array.from(usedDatesSet).map(t => new Date(t)).sort((a, b) => a.getTime() - b.getTime());
+            const daysArr = ['일', '월', '화', '수', '목', '금', '토'];
+
+            html += `<table class="export-table"><thead><tr><th>날짜 \\ 안</th>`;
+            currentCases.forEach((_, idx) => html += `<th>제 ${idx + 1}안</th>`);
+            html += `</tr></thead><tbody>`;
+
+            rows.forEach(rowDate => {
+                const isMon = rowDate.getDay() === 1;
+                html += `<tr class="${isMon ? 'row-monday' : 'row-thursday'}">`;
+                html += `<td class="date-col-export">${rowDate.getMonth()+1}/${rowDate.getDate()} (${daysArr[rowDate.getDay()]})</td>`;
+
+                currentCases.forEach((combo, idx) => {
+                    const comboIdx = combo.findIndex(d => d.getTime() === rowDate.getTime());
+                    html += `<td>`;
+                    if (comboIdx === 0) html += `<span class="exp-pill exp-pill-red">퇴출전</span>`;
+                    else if (comboIdx > 0) html += `<span class="exp-pill exp-pill-blue">${comboIdx}회차</span>`;
+                    else html += `<span class="exp-empty-cell">-</span>`;
+                    html += `</td>`;
+                });
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+
+            // Build Export Calendar
+            html += `
+                <div class="side-panel">
+                    <h3 class="cal-title">${currentYear}.${String(currentMonth).padStart(2, '0')}</h3>
+                    <div class="cal-grid">
+                        <span class="day-head red">일</span><span class="day-head">월</span><span class="day-head">화</span>
+                        <span class="day-head">수</span><span class="day-head">목</span><span class="day-head">금</span>
+                        <span class="day-head blue">토</span>
+            `;
+
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const firstDayIndex = new Date(currentYear, currentMonth - 1, 1).getDay();
+            const poolTimes = currentPool.map(d => d.getTime());
+
+            for (let i = 0; i < firstDayIndex; i++) html += `<div class="exp-cal-cell empty">-</div>`;
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const d = new Date(currentYear, currentMonth - 1, i);
+                let classes = "exp-cal-cell";
+                if (d.getDay() === 0) classes += " red-text";
+                
+                if (d.getDay() === 1 && poolTimes.includes(d.getTime())) classes += " exp-cal-fill-blue";
+                if (d.getDay() === 4 && poolTimes.includes(d.getTime())) classes += " exp-cal-outline-blue";
+                
+                html += `<div class="${classes}">${i}</div>`;
+            }
+
+            html += `
+                    </div>
+                    <div class="legend-area">
+                        <ul class="legend-list">
+                            <li><span class="legend-box red"></span> 퇴출전</li>
+                            <li><span class="legend-box blue"></span> 일반회차 (1~5회차)</li>
+                            <li style="margin-top: 4px;"><span class="legend-circle fill-blue"></span> 월요일 고정</li>
+                            <li><span class="legend-circle outline-blue"></span> 목요일 가변편성</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>`;
+
+            exportContainer.innerHTML = html;
+
+            // Wait a short moment for DOM to paint the offscreen element
+            setTimeout(async () => {
+                try {
+                    const canvas = await html2canvas(exportContainer, {
+                        scale: 2, // High resolution
+                        useCORS: true,
+                        backgroundColor: "#ffffff",
+                        logging: false
+                    });
+                    
+                    const image = canvas.toDataURL("image/png");
+                    const link = document.createElement('a');
+                    link.href = image;
+                    link.download = `${currentYear}년_${currentMonth}월_방송편성안.png`;
+                    link.click();
+                    
+                    showToast("✅ 이미지가 성공적으로 생성되었습니다.");
+                } catch (error) {
+                    console.error("Export failed:", error);
+                    showToast("이미지 생성 중 오류가 발생했습니다.", true);
+                } finally {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    exportContainer.innerHTML = ''; // Clean up
+                }
+            }, 500);
+        }
+    </script>
+</body>
+</html>
