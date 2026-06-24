@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>771엑셀 방송편성안 자동 생성기</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- html2canvas for image export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,10 +40,6 @@
         .cal-outline-blue { border: 2px solid #94a3b8; color: #64748b; font-weight: 600; }
         .highlight-red { background-color: #ef4444 !important; color: white !important; border-color: #ef4444 !important; font-weight: 700; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3); }
         .highlight-blue { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; font-weight: 700; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); }
-
-        /* 🔥 수정 1: 달력에 호버 시 기존 마커(월 고정, 목 가변)를 임시로 숨기는 CSS 추가 */
-        #calendarGrid.hover-active .cal-fill-blue:not(.highlight-red):not(.highlight-blue) { background-color: transparent !important; color: #334155 !important; box-shadow: none; font-weight: 500; }
-        #calendarGrid.hover-active .cal-outline-blue:not(.highlight-red):not(.highlight-blue) { border-color: transparent !important; color: #334155 !important; font-weight: 500; }
 
         .table-container::-webkit-scrollbar { height: 10px; }
         .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
@@ -88,18 +86,23 @@
         #export-container .row-thursday { background-color: #ffffff; }
         #export-container .date-col-export { font-weight: 700; color: #334155 !important; font-size: 11px; }
 
-        /* 🔥 수정 2: html2canvas 폰트 쏠림 현상 해결 (표 안의 알약 디자인)
-           => 기존의 line-height 강제 정렬 대신 Flexbox 정렬 및 line-height:1 적용 */
+        /* 🔥 이미지 캡처 전용 표 셀 수정: 하단 패딩을 더 주어 박스 안의 글자를 상대적으로 위로 올림 */
         #export-container .exp-pill {
-            display: flex; align-items: center; justify-content: center; 
-            width: 90%; max-width: 50px; margin: 0 auto; height: 24px; border-radius: 5px; 
-            font-weight: 700; font-size: 11px; text-align: center;
+            display: block; width: 90%; max-width: 50px; 
+            margin: 0 auto; 
+            padding: 4px 0 6px 0; /* Box goes down slightly more to center text */
+            border-radius: 5px; 
+            font-weight: 700; font-size: 11px; text-align: center; 
             color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.1); white-space: nowrap;
-            line-height: 1; box-sizing: border-box;
+            line-height: 1.2; box-sizing: border-box;
         }
         #export-container .exp-pill-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
         #export-container .exp-pill-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-        #export-container .exp-empty-cell { display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 400; font-size: 11px; height: 24px; line-height: 1; }
+        #export-container .exp-empty-cell { 
+            display: block; 
+            padding: 4px 0 6px 0; 
+            color: #94a3b8; font-weight: 400; font-size: 11px; text-align: center; line-height: 1.2; 
+        }
 
         #export-container .side-panel {
             width: 210px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
@@ -111,13 +114,15 @@
         #export-container .day-head.red { color: #ef4444; }
         #export-container .day-head.blue { color: #3b82f6; }
         
-        /* 🔥 수정 3: html2canvas 달력 원형 셀 폰트 쏠림 해결
-           => Flexbox로 중앙정렬을 강제하고 폰트 기본 여백(line-height)을 초기화함 */
+        /* 🔥 이미지 캡처 전용 캘린더 원 수정: 상단 패딩을 주어 글자를 시각적으로 보정 */
         #export-container .exp-cal-cell { 
-            display: flex; align-items: center; justify-content: center;
+            display: block; 
             font-size: 13px; font-weight: 500; color: #334155; 
-            width: 24px; height: 24px; margin: 0 auto; border-radius: 50%; box-sizing: border-box; 
-            line-height: 1;
+            width: 24px; height: 24px; 
+            margin: 0 auto; border-radius: 50%; box-sizing: border-box; 
+            text-align: center;
+            padding-top: 3px; /* Shift text down/up offset handling */
+            line-height: 1.2;
         }
         #export-container .exp-cal-cell.red-text { color: #ef4444; }
         #export-container .exp-cal-cell.empty { visibility: hidden; }
@@ -161,22 +166,26 @@
 
     <main class="max-w-7xl mx-auto w-full flex flex-col xl:flex-row gap-6 flex-grow relative z-10">
         
+        <!-- UI Table Section -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-grow overflow-hidden flex flex-col">
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                 <h2 id="tableTitle" class="text-lg font-bold text-slate-800">생성된 편성안 (0개)</h2>
                 <span class="text-xs text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">표의 열(안)에 마우스를 올리면 달력에 표시됩니다.</span>
             </div>
             <div class="table-container overflow-x-auto p-4 relative" id="tableContainer">
+                <!-- Table will be injected here -->
                 <div class="flex items-center justify-center h-64 text-slate-400">
                     월을 선택하고 생성 버튼을 눌러주세요.
                 </div>
             </div>
         </div>
 
+        <!-- UI Calendar Section -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 w-full xl:w-80 flex-shrink-0 flex flex-col p-6">
             <h3 id="calTitle" class="text-2xl font-bold text-center text-slate-800 mb-6 font-sans"></h3>
             
             <div class="grid grid-cols-7 gap-y-4 text-center mb-auto" id="calendarGrid">
+                <!-- Days Header -->
                 <div class="text-sm font-bold text-red-500 mb-2">일</div>
                 <div class="text-sm font-bold text-slate-600 mb-2">월</div>
                 <div class="text-sm font-bold text-slate-600 mb-2">화</div>
@@ -184,7 +193,8 @@
                 <div class="text-sm font-bold text-slate-600 mb-2">목</div>
                 <div class="text-sm font-bold text-slate-600 mb-2">금</div>
                 <div class="text-sm font-bold text-blue-500 mb-2">토</div>
-                </div>
+                <!-- Calendar cells injected here -->
+            </div>
 
             <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mt-8">
                 <ul class="flex flex-col gap-3 text-sm text-slate-600 font-medium">
@@ -198,8 +208,10 @@
 
     </main>
 
+    <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300 translate-y-20 opacity-0 z-50 text-sm font-bold"></div>
 
+    <!-- Hidden Container for High Quality Image Export -->
     <div id="export-container"></div>
 
     <script>
@@ -347,21 +359,31 @@
                 cell.innerText = i;
 
                 if (d.getDay() === 0) cell.classList.add('text-red-500');
-                if (d.getDay() === 1 && poolTimes.includes(d.getTime())) cell.classList.add('cal-fill-blue');
-                if (d.getDay() === 4 && poolTimes.includes(d.getTime())) cell.classList.add('cal-outline-blue');
+                
+                /* 🔥 추가: 나중에 캘린더 초기화 시 지우고 복구하기 쉽도록 트래킹 클래스를 추가합니다. */
+                if (d.getDay() === 1 && poolTimes.includes(d.getTime())) {
+                    cell.classList.add('cal-fill-blue', 'is-pool-mon'); 
+                }
+                if (d.getDay() === 4 && poolTimes.includes(d.getTime())) {
+                    cell.classList.add('cal-outline-blue', 'is-pool-thu');
+                }
 
                 grid.appendChild(cell);
             }
         }
 
-        /* 🔥 수정 1: 자바스크립트 달력 hover 연동 스크립트 수정 */
+        /* 🔥 달력 Hover 기능 완벽 보완: 기본 원형 표시를 아예 제거했다가 다시 복구하는 방식 */
         function highlightCase(caseIndex) {
             resetHighlight();
-            // 호버가 시작되면 캘린더 부모에게 hover-active 클래스를 부여하여 기존 마커를 숨깁니다.
-            document.getElementById('calendarGrid').classList.add('hover-active');
             
             const combo = currentCases[caseIndex];
             if (!combo) return;
+
+            // 1. Hover 시 해당 월에 속한 기존 풀 데이터(원, 테두리)를 아예 벗겨냅니다.
+            document.querySelectorAll('.is-pool-mon').forEach(c => c.classList.remove('cal-fill-blue'));
+            document.querySelectorAll('.is-pool-thu').forEach(c => c.classList.remove('cal-outline-blue'));
+
+            // 2. 선택된 편성안에만 색상을 입힙니다.
             combo.forEach((date, idx) => {
                 const cell = document.getElementById(`cal-day-${date.getDate()}`);
                 if (cell) cell.classList.add(idx === 0 ? 'highlight-red' : 'highlight-blue');
@@ -369,10 +391,14 @@
         }
 
         function resetHighlight() {
-            // 마우스가 표를 떠나면 hover-active 상태를 해제하여 원래대로 보여줍니다.
-            document.getElementById('calendarGrid').classList.remove('hover-active');
-            
-            document.querySelectorAll('.cal-cell').forEach(cell => cell.classList.remove('highlight-red', 'highlight-blue'));
+            // 1. 표에 마우스가 나갔을 때 강조된(선택된) 편성안 색상을 벗겨냅니다.
+            document.querySelectorAll('.cal-cell').forEach(cell => {
+                cell.classList.remove('highlight-red', 'highlight-blue');
+            });
+
+            // 2. 기존 풀 데이터(월, 목 후보군)들을 다시 복구시켜줍니다.
+            document.querySelectorAll('.is-pool-mon').forEach(c => c.classList.add('cal-fill-blue'));
+            document.querySelectorAll('.is-pool-thu').forEach(c => c.classList.add('cal-outline-blue'));
         }
 
         async function exportToImage() {
