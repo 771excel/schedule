@@ -40,12 +40,12 @@
         .cal-outline-blue { border: 2px solid #94a3b8; color: #64748b; font-weight: 600; }
         .highlight-red { background-color: #ef4444 !important; color: white !important; border-color: #ef4444 !important; font-weight: 700; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3); }
         .highlight-blue { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; font-weight: 700; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); }
+        .excluded-day { text-decoration: line-through; color: #cbd5e1 !important; }
 
         .table-container::-webkit-scrollbar { height: 10px; }
         .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
         .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
         .table-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
 
         /* =======================================================
            EXPORT TEMPLATE STYLES (Used only for image generation)
@@ -108,7 +108,6 @@
         #export-container .day-head.red { color: #ef4444; }
         #export-container .day-head.blue { color: #3b82f6; }
         
-        /* 버그 픽스: 달력 원형 셀 중앙 정렬 수정 */
         #export-container .exp-cal-cell { 
             font-size: 13px; font-weight: 500; color: #334155; 
             width: 24px; height: 24px; display: inline-block; line-height: 24px; text-align: center; 
@@ -118,6 +117,7 @@
         #export-container .exp-cal-cell.empty { visibility: hidden; }
         #export-container .exp-cal-fill-blue { background-color: #3b82f6; color: #ffffff; font-weight: 700; box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3); }
         #export-container .exp-cal-outline-blue { border: 2px solid #3b82f6; color: #2563eb; font-weight: 700; }
+        #export-container .exp-excluded-day { text-decoration: line-through; color: #cbd5e1 !important; }
 
         #export-container .legend-top { text-align: center; margin-bottom: 12px; display: block; }
         #export-container .legend-top .item { display: inline-block; font-size: 12px; color: #334155; font-weight: 500; margin: 0 8px; line-height: 14px; }
@@ -141,18 +141,32 @@
             <p class="text-slate-500 text-sm mt-1">월요일 고정 / 목요일 가변 원칙 (퇴출전 1회 + 일반 5회) 기반 모든 경우의 수 도출</p>
         </div>
         
-        <div class="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200 flex-wrap">
-            <input type="month" id="monthPicker" class="px-4 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700">
-            <button onclick="generateSchedule()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md font-semibold transition-colors shadow-sm whitespace-nowrap">
-                편성안 생성
-            </button>
-            <button onclick="exportToImage()" id="exportBtn" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-md font-semibold transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                </svg>
-                이미지로 생성
-            </button>
+        <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 flex-wrap">
+            <div class="flex flex-col">
+                <span class="text-xs font-bold text-slate-500 mb-1 ml-1">편성 월 선택</span>
+                <input type="month" id="monthPicker" class="px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 text-sm">
+            </div>
+            
+            <!-- 새로 추가된 제외 일자 입력 필드 -->
+            <div class="flex flex-col">
+                <span class="text-xs font-bold text-slate-500 mb-1 ml-1">제외할 일자 (선택)</span>
+                <input type="text" id="excludeDates" placeholder="예: 6, 16" title="쉼표(,)로 구분하여 입력하세요" class="px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 w-32 text-sm">
+            </div>
+
+            <div class="flex flex-col justify-end h-full mt-auto">
+                <button onclick="generateSchedule()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md font-semibold transition-colors shadow-sm whitespace-nowrap h-[38px] text-sm flex items-center">
+                    편성안 도출
+                </button>
+            </div>
+            <div class="flex flex-col justify-end h-full mt-auto border-l pl-3 ml-1 border-slate-300">
+                <button onclick="exportToImage()" id="exportBtn" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md font-semibold transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap h-[38px] text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                        <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                    </svg>
+                    이미지로 생성
+                </button>
+            </div>
         </div>
     </header>
 
@@ -165,7 +179,6 @@
                 <span class="text-xs text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">표의 열(안)에 마우스를 올리면 달력에 표시됩니다.</span>
             </div>
             <div class="table-container overflow-x-auto p-4 relative" id="tableContainer">
-                <!-- Table will be injected here -->
                 <div class="flex items-center justify-center h-64 text-slate-400">
                     월을 선택하고 생성 버튼을 눌러주세요.
                 </div>
@@ -201,7 +214,7 @@
 
     </main>
 
-    <!-- Toast Notification (Replaces alert) -->
+    <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300 translate-y-20 opacity-0 z-50 text-sm font-bold"></div>
 
     <!-- Hidden Container for High Quality Image Export -->
@@ -213,8 +226,8 @@
         let currentPool = [];
         let currentYear = 0;
         let currentMonth = 0;
+        let parsedExcludeDays = []; // 저장용
 
-        // Custom UI Toast Function
         function showToast(message, isError = false) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -237,18 +250,26 @@
             const dateStr = document.getElementById('monthPicker').value;
             if (!dateStr) return;
 
+            // 제외 날짜 파싱 로직 추가
+            const excludeStr = document.getElementById('excludeDates').value;
+            parsedExcludeDays = excludeStr.split(',')
+                .map(s => parseInt(s.trim()))
+                .filter(n => !isNaN(n));
+
             const [year, month] = dateStr.split('-').map(Number);
             currentYear = year;
             currentMonth = month;
             
             document.getElementById('calTitle').innerText = `${year}.${String(month).padStart(2, '0')}`;
-            document.getElementById('tableTitle').innerText = `${year}년 ${month}월 방송편성안`;
 
             const daysInMonth = new Date(year, month, 0).getDate();
             const firstDayIndex = new Date(year, month - 1, 1).getDay();
 
             const pool = [];
             for (let i = 1; i <= daysInMonth; i++) {
+                // 제외 처리: 입력된 날짜면 pool에 넣지 않음
+                if (parsedExcludeDays.includes(i)) continue;
+
                 const d = new Date(year, month - 1, i);
                 if (d.getDay() === 1 || d.getDay() === 4) pool.push(d);
             }
@@ -297,6 +318,11 @@
 
             renderTable(validCombos, year, month);
             renderCalendar(year, month, daysInMonth, firstDayIndex, pool);
+
+            // 알림
+            if(parsedExcludeDays.length > 0) {
+                showToast(`🚫 ${parsedExcludeDays.join(', ')}일이 편성에서 제외되었습니다.`);
+            }
         }
 
         function renderTable(cases, year, month) {
@@ -304,7 +330,7 @@
             document.getElementById('tableTitle').innerText = `${year}년 ${month}월 방송편성안 (총 ${cases.length}개 안)`;
 
             if (cases.length === 0) {
-                container.innerHTML = `<div class="flex items-center justify-center h-64 text-red-400 font-bold">생성 가능한 편성 조합이 없습니다.</div>`;
+                container.innerHTML = `<div class="flex items-center justify-center h-64 text-red-500 font-bold bg-red-50 rounded-lg">조건을 만족하는 6회차 편성 조합이 없습니다. (제외된 날짜가 너무 많을 수 있습니다.)</div>`;
                 return;
             }
 
@@ -354,8 +380,18 @@
                 cell.innerText = i;
 
                 if (d.getDay() === 0) cell.classList.add('text-red-500');
-                if (d.getDay() === 1 && poolTimes.includes(d.getTime())) cell.classList.add('cal-fill-blue');
-                if (d.getDay() === 4 && poolTimes.includes(d.getTime())) cell.classList.add('cal-outline-blue');
+                
+                // 제외된 일자 표시 (취소선)
+                if (parsedExcludeDays.includes(i)) {
+                    cell.classList.add('excluded-day');
+                } else {
+                    if (d.getDay() === 1 && poolTimes.includes(d.getTime())) {
+                        cell.classList.add('cal-fill-blue', 'is-pool-mon'); 
+                    }
+                    if (d.getDay() === 4 && poolTimes.includes(d.getTime())) {
+                        cell.classList.add('cal-outline-blue', 'is-pool-thu');
+                    }
+                }
 
                 grid.appendChild(cell);
             }
@@ -365,6 +401,10 @@
             resetHighlight();
             const combo = currentCases[caseIndex];
             if (!combo) return;
+
+            document.querySelectorAll('.is-pool-mon').forEach(c => c.classList.remove('cal-fill-blue'));
+            document.querySelectorAll('.is-pool-thu').forEach(c => c.classList.remove('cal-outline-blue'));
+
             combo.forEach((date, idx) => {
                 const cell = document.getElementById(`cal-day-${date.getDate()}`);
                 if (cell) cell.classList.add(idx === 0 ? 'highlight-red' : 'highlight-blue');
@@ -372,12 +412,14 @@
         }
 
         function resetHighlight() {
-            document.querySelectorAll('.cal-cell').forEach(cell => cell.classList.remove('highlight-red', 'highlight-blue'));
+            document.querySelectorAll('.cal-cell').forEach(cell => {
+                cell.classList.remove('highlight-red', 'highlight-blue');
+            });
+
+            document.querySelectorAll('.is-pool-mon').forEach(c => c.classList.add('cal-fill-blue'));
+            document.querySelectorAll('.is-pool-thu').forEach(c => c.classList.add('cal-outline-blue'));
         }
 
-        // ==========================================
-        // EXPORT TO IMAGE FUNCTIONALITY
-        // ==========================================
         async function exportToImage() {
             if (currentCases.length === 0) {
                 showToast("추출할 편성안이 없습니다.", true);
@@ -391,7 +433,6 @@
 
             const exportContainer = document.getElementById('export-container');
             
-            // Build the HTML for the slide layout
             let html = `
                 <div class="header-section">
                     <h1 class="slide-title">${currentYear}년 771엑셀 ${currentMonth}월 방송편성안</h1>
@@ -428,7 +469,6 @@
 
             html += `</tbody></table></div>`;
 
-            // Build Export Calendar
             html += `
                 <div class="side-panel">
                     <h3 class="cal-title">${currentYear}.${String(currentMonth).padStart(2, '0')}</h3>
@@ -453,8 +493,13 @@
                 let classes = "exp-cal-cell";
                 if (d.getDay() === 0) classes += " red-text";
                 
-                if (d.getDay() === 1 && poolTimes.includes(d.getTime())) classes += " exp-cal-fill-blue";
-                if (d.getDay() === 4 && poolTimes.includes(d.getTime())) classes += " exp-cal-outline-blue";
+                // 제외 일자 이미지에도 반영
+                if (parsedExcludeDays.includes(i)) {
+                    classes += " exp-excluded-day";
+                } else {
+                    if (d.getDay() === 1 && poolTimes.includes(d.getTime())) classes += " exp-cal-fill-blue";
+                    if (d.getDay() === 4 && poolTimes.includes(d.getTime())) classes += " exp-cal-outline-blue";
+                }
                 
                 html += `<div class="${classes}">${i}</div>`;
             }
@@ -472,11 +517,10 @@
 
             exportContainer.innerHTML = html;
 
-            // Wait a short moment for DOM to paint the offscreen element
             setTimeout(async () => {
                 try {
                     const canvas = await html2canvas(exportContainer, {
-                        scale: 2, // High resolution
+                        scale: 2, 
                         useCORS: true,
                         backgroundColor: "#ffffff",
                         logging: false
@@ -495,7 +539,7 @@
                 } finally {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
-                    exportContainer.innerHTML = ''; // Clean up
+                    exportContainer.innerHTML = ''; 
                 }
             }, 500);
         }
