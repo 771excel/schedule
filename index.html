@@ -42,6 +42,27 @@
         .highlight-blue { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; font-weight: 700; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); }
         .excluded-day { text-decoration: line-through; color: #cbd5e1 !important; }
 
+        /* 🔥 일반회차 호버 시 나타나는 우측 상단 숫자 뱃지 스타일 */
+        .highlight-blue[data-episode]::after {
+            content: attr(data-episode);
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            width: 18px;
+            height: 18px;
+            background-color: #0f172a; /* 뱃지 배경색 (어두운 남색) */
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+        }
+
         .table-container::-webkit-scrollbar { height: 10px; }
         .table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
         .table-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
@@ -87,7 +108,6 @@
         #export-container .row-thursday { background-color: #ffffff; }
         #export-container .date-col-export { font-weight: 700; color: #334155 !important; font-size: 11px; }
 
-        /* 버그 픽스: Flex를 쓰지 않고 block + line-height로 중앙 정렬을 강제함 */
         #export-container .exp-pill {
             display: inline-block; width: 90%; max-width: 50px; 
             margin: 0 auto; height: 24px; line-height: 24px; border-radius: 5px; 
@@ -147,7 +167,6 @@
                 <input type="month" id="monthPicker" class="px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 text-sm">
             </div>
             
-            <!-- 새로 추가된 제외 일자 입력 필드 -->
             <div class="flex flex-col">
                 <span class="text-xs font-bold text-slate-500 mb-1 ml-1">제외할 일자 (선택)</span>
                 <input type="text" id="excludeDates" placeholder="예: 6, 16" title="쉼표(,)로 구분하여 입력하세요" class="px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 w-32 text-sm">
@@ -172,7 +191,6 @@
 
     <main class="max-w-7xl mx-auto w-full flex flex-col xl:flex-row gap-6 flex-grow relative z-10">
         
-        <!-- UI Table Section -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-grow overflow-hidden flex flex-col">
             <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
                 <h2 id="tableTitle" class="text-lg font-bold text-slate-800">생성된 편성안 (0개)</h2>
@@ -185,7 +203,6 @@
             </div>
         </div>
 
-        <!-- UI Calendar Section -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 w-full xl:w-80 flex-shrink-0 flex flex-col p-6">
             <h3 id="calTitle" class="text-2xl font-bold text-center text-slate-800 mb-4 font-sans"></h3>
             
@@ -214,19 +231,16 @@
 
     </main>
 
-    <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-xl transform transition-all duration-300 translate-y-20 opacity-0 z-50 text-sm font-bold"></div>
 
-    <!-- Hidden Container for High Quality Image Export -->
     <div id="export-container"></div>
 
     <script>
-        // Global state
         let currentCases = [];
         let currentPool = [];
         let currentYear = 0;
         let currentMonth = 0;
-        let parsedExcludeDays = []; // 저장용
+        let parsedExcludeDays = []; 
 
         function showToast(message, isError = false) {
             const toast = document.getElementById('toast');
@@ -250,7 +264,6 @@
             const dateStr = document.getElementById('monthPicker').value;
             if (!dateStr) return;
 
-            // 제외 날짜 파싱 로직 추가
             const excludeStr = document.getElementById('excludeDates').value;
             parsedExcludeDays = excludeStr.split(',')
                 .map(s => parseInt(s.trim()))
@@ -267,9 +280,7 @@
 
             const pool = [];
             for (let i = 1; i <= daysInMonth; i++) {
-                // 제외 처리: 입력된 날짜면 pool에 넣지 않음
                 if (parsedExcludeDays.includes(i)) continue;
-
                 const d = new Date(year, month - 1, i);
                 if (d.getDay() === 1 || d.getDay() === 4) pool.push(d);
             }
@@ -319,7 +330,6 @@
             renderTable(validCombos, year, month);
             renderCalendar(year, month, daysInMonth, firstDayIndex, pool);
 
-            // 알림
             if(parsedExcludeDays.length > 0) {
                 showToast(`🚫 ${parsedExcludeDays.join(', ')}일이 편성에서 제외되었습니다.`);
             }
@@ -381,7 +391,6 @@
 
                 if (d.getDay() === 0) cell.classList.add('text-red-500');
                 
-                // 제외된 일자 표시 (취소선)
                 if (parsedExcludeDays.includes(i)) {
                     cell.classList.add('excluded-day');
                 } else {
@@ -407,13 +416,22 @@
 
             combo.forEach((date, idx) => {
                 const cell = document.getElementById(`cal-day-${date.getDate()}`);
-                if (cell) cell.classList.add(idx === 0 ? 'highlight-red' : 'highlight-blue');
+                if (cell) {
+                    if (idx === 0) {
+                        cell.classList.add('highlight-red');
+                    } else {
+                        cell.classList.add('highlight-blue');
+                        // 🔥 호버 시 숫자를 띄우기 위해 data-episode 속성에 회차 부여
+                        cell.setAttribute('data-episode', idx);
+                    }
+                }
             });
         }
 
         function resetHighlight() {
             document.querySelectorAll('.cal-cell').forEach(cell => {
                 cell.classList.remove('highlight-red', 'highlight-blue');
+                cell.removeAttribute('data-episode'); // 초기화
             });
 
             document.querySelectorAll('.is-pool-mon').forEach(c => c.classList.add('cal-fill-blue'));
@@ -493,7 +511,6 @@
                 let classes = "exp-cal-cell";
                 if (d.getDay() === 0) classes += " red-text";
                 
-                // 제외 일자 이미지에도 반영
                 if (parsedExcludeDays.includes(i)) {
                     classes += " exp-excluded-day";
                 } else {
