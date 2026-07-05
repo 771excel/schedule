@@ -42,7 +42,6 @@
         .highlight-blue { background-color: #3b82f6 !important; color: white !important; border-color: #3b82f6 !important; font-weight: 700; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); }
         .excluded-day { text-decoration: line-through; color: #cbd5e1 !important; }
 
-        /* 🔥 일반회차 호버 시 나타나는 우측 상단 숫자 뱃지 스타일 */
         .highlight-blue[data-episode]::after {
             content: attr(data-episode);
             position: absolute;
@@ -75,7 +74,7 @@
             position: fixed;
             top: -9999px;
             left: -9999px;
-            width: 1280px;
+            /* width is now set dynamically in JS based on case count */
             height: 720px;
             background-color: #ffffff;
             padding: 35px 30px;
@@ -120,7 +119,7 @@
 
         #export-container .side-panel {
             width: 210px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 20px 15px; display: block; height: 100%; box-sizing: border-box;
+            padding: 20px 15px; display: block; height: 100%; box-sizing: border-box; flex-shrink: 0;
         }
         #export-container .cal-title { text-align: center; font-size: 22px; font-weight: 700; color: #0f172a; margin: 0 0 15px 0; font-family: 'Arial', sans-serif; line-height: 22px; }
         #export-container .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 10px; text-align: center; margin-bottom: 20px; }
@@ -164,12 +163,12 @@
         <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 flex-wrap">
             <div class="flex flex-col">
                 <span class="text-xs font-bold text-slate-500 mb-1 ml-1">편성 월 선택</span>
-                <input type="month" id="monthPicker" class="px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 text-sm">
+                <input type="month" id="monthPicker" class="px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 text-sm" value="2026-08">
             </div>
             
             <div class="flex flex-col">
                 <span class="text-xs font-bold text-slate-500 mb-1 ml-1">제외할 일자 (선택)</span>
-                <input type="text" id="excludeDates" placeholder="예: 6, 16" title="쉼표(,)로 구분하여 입력하세요" class="px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 w-32 text-sm">
+                <input type="text" id="excludeDates" value="27" placeholder="예: 6, 16" title="쉼표(,)로 구분하여 입력하세요" class="px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 w-32 text-sm">
             </div>
 
             <div class="flex flex-col justify-end h-full mt-auto">
@@ -240,7 +239,6 @@
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 기존 인라인 스크립트를 위해 window 객체에 전역 함수로 등록
         window.generateSchedule = generateSchedule;
         window.exportToImage = exportToImage;
         window.highlightCase = highlightCase;
@@ -253,7 +251,6 @@
         let currentMonth = 0;
         let parsedExcludeDays = []; 
 
-        // Firebase 변수
         let db, auth, currentUser, appId;
 
         function showToast(message, isError = false) {
@@ -269,9 +266,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const picker = document.getElementById('monthPicker');
-            picker.value = '2026-07'; // 기본값 세팅 후, Firebase에서 불러오면 덮어씌워짐
-            generateSchedule(true);   // 초기 로드 시 DB 저장을 방지하기 위한 flag 전달
+            // 기본값 하드코딩 2026-08, 27일 제외 (파이어베이스가 나중에 로드되어도 덮어쓰도록 유도 가능)
+            generateSchedule(true);
         });
 
         // Firebase 초기화 및 Auth
@@ -300,7 +296,6 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentUser = user;
-                        // 🔥 캐시 데이터(최근 설정) 불러오기
                         try {
                             const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'userSettings', 'cache');
                             const docSnap = await getDoc(docRef);
@@ -308,7 +303,7 @@
                                 const data = docSnap.data();
                                 if (data.month) document.getElementById('monthPicker').value = data.month;
                                 if (data.excludeDates !== undefined) document.getElementById('excludeDates').value = data.excludeDates;
-                                generateSchedule(true); // 불러온 값으로 스케줄 생성
+                                generateSchedule(true);
                                 showToast("☁️ 클라우드에서 이전 설정값을 불러왔습니다.");
                             }
                         } catch(e) { console.error("Cache load err:", e); }
@@ -326,7 +321,6 @@
                 .map(s => parseInt(s.trim()))
                 .filter(n => !isNaN(n));
 
-            // 🔥 Firestore에 캐시(최근 설정) 저장 로직 (초기 로드 시에는 스킵)
             if (!isInitialLoad && currentUser && db) {
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'userSettings', 'cache');
@@ -350,6 +344,7 @@
                 if (d.getDay() === 1 || d.getDay() === 4) pool.push(d);
             }
             currentPool = pool;
+            const totalMons = pool.filter(d => d.getDay() === 1).length;
 
             function getCombinations(array, size) {
                 const result = [];
@@ -367,27 +362,27 @@
             const allCombos = getCombinations(pool, 6);
             const validCombos = [];
             
-            const totalMons = pool.filter(d => d.getDay() === 1).length;
-            const firstMon = pool.find(d => d.getDay() === 1);
-
+            // 모든 경우의 수 도출 (단, '월요일 고정' 원칙을 해치지 않기 위해 최소 월요일 배정수를 보장)
             allCombos.forEach(combo => {
                 const monCount = combo.filter(d => d.getDay() === 1).length;
-                if (monCount === totalMons) {
+                // 월요일을 가급적 많이 사용하는 조건을 위해, 가능한 월요일 전체 갯수에서 최대 2번까지만 대체 허용
+                if (monCount >= totalMons - 2) {
                     validCombos.push(combo);
-                } else if (monCount === totalMons - 1) {
-                    const missedMon = pool.find(d => d.getDay() === 1 && !combo.includes(d));
-                    if (missedMon && firstMon && missedMon.getTime() === firstMon.getTime()) {
-                        const nextThu = pool.find(d => d.getDay() === 4 && d.getTime() > missedMon.getTime());
-                        if (nextThu && combo.includes(nextThu)) validCombos.push(combo);
-                    }
                 }
             });
 
+            // 정렬: 1순위(월요일이 많은 안 먼저), 2순위(날짜가 빠른 순으로 크로놀로지)
             validCombos.sort((a, b) => {
-                if (a[0].getTime() !== b[0].getTime()) return a[0].getTime() - b[0].getTime();
                 const aMon = a.filter(d => d.getDay() === 1).length;
                 const bMon = b.filter(d => d.getDay() === 1).length;
-                return bMon - aMon;
+                if (aMon !== bMon) return bMon - aMon; 
+                
+                for (let i = 0; i < 6; i++) {
+                    if (a[i].getTime() !== b[i].getTime()) {
+                        return a[i].getTime() - b[i].getTime();
+                    }
+                }
+                return 0;
             });
 
             currentCases = validCombos;
@@ -395,7 +390,6 @@
             renderTable(validCombos, year, month);
             renderCalendar(year, month, daysInMonth, firstDayIndex, pool);
 
-            // 초기 로드가 아닌 사용자가 버튼을 직접 눌렀을때만 알림 토스트 팝업 
             if(!isInitialLoad && parsedExcludeDays.length > 0) {
                 showToast(`🚫 ${parsedExcludeDays.join(', ')}일이 편성에서 제외되었습니다.`);
             }
@@ -515,6 +509,13 @@
             btn.disabled = true;
 
             const exportContainer = document.getElementById('export-container');
+            
+            // 경우의 수 갯수에 따라 레이아웃 가로 폭을 다이나믹하게 조정 (1280px -> 1920px -> 2560px)
+            let dynamicWidth = 1280;
+            if (currentCases.length > 12) dynamicWidth = 1920;
+            if (currentCases.length > 24) dynamicWidth = 2560;
+
+            exportContainer.style.width = `${dynamicWidth}px`;
             
             let html = `
                 <div class="header-section">
